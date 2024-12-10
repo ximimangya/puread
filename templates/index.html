@@ -16,6 +16,7 @@
     />
   </head>
   <script>
+    saveList = "";
     $.ajax("http://localhost:5000/api/listdir", {
       method: "GET",
       success: function (result) {
@@ -29,7 +30,11 @@
               result[i].Name +
               '</div><div class="mdui-list-item-text mdui-list-item-one-line">' +
               formatSizeUnits(result[i].Size) +
-              '</div></div></div><label class="mdui-checkbox"><input id="input_'+ i +'" onchange="addItem('+i+')" type="checkbox"/><i class="mdui-checkbox-icon"></i></label></li>'
+              '</div></div></div><label class="mdui-checkbox"><input id="input_' +
+              i +
+              '" onchange="addItem(' +
+              i +
+              ')" type="checkbox"/><i class="mdui-checkbox-icon"></i></label></li>'
           );
         }
       },
@@ -38,12 +43,16 @@
         mdui.snackbar("获取失败，原因：" + err.status + " " + err.statusText);
       },
     });
-    const item = []
+    const item = [];
     function addItem(id) {
-      const name = $("#input_" + id).parent().parent().find(".mdui-list-item-title").text();
+      const name = $("#input_" + id)
+        .parent()
+        .parent()
+        .find(".mdui-list-item-title")
+        .text();
       if ($("#input_" + id).is(":checked")) {
         mdui.snackbar("已添加：" + name);
-        item.push({name:name,id:id})
+        item.push({ name: name, id: id });
       } else {
         mdui.snackbar("已取消：" + name);
         for (let i = 0; i < item.length; i++) {
@@ -92,12 +101,42 @@
       }
       return bytes;
     }
+    function closeSearch() {
+      $("#title,#sub-title,#showSearch").show();
+      $("#keyword").val("");
+      $("#list").html(saveList);
+    }
   </script>
   <body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
     <div class="mdui-appbar">
       <div class="mdui-toolbar mdui-color-theme">
-        <a class="mdui-typo-headline">PureAppData</a>
-        <a class="mdui-typo-title">AppData清理工具</a>
+        <a class="mdui-typo-headline" id="title">PureAppData</a>
+        <a class="mdui-typo-title" id="sub-title">AppData清理工具</a>
+        <div class="mdui-toolbar-spacer"></div>
+        <div class="mdui-textfield mdui-textfield-expandable mdui-float-right">
+          <button
+            class="mdui-textfield-icon mdui-btn mdui-btn-icon"
+            id="showSearch"
+            onclick="javascript:$('#title,#sub-title,#showSearch').hide();"
+          >
+            <i class="mdui-icon material-icons">search</i>
+          </button>
+          <form id="searchForm">
+            <input
+              class="mdui-textfield-input"
+              type="text"
+              placeholder="Search"
+              style="color: white; margin-left: 0"
+              id="keyword"
+            />
+          </form>
+          <button
+            class="mdui-textfield-close mdui-btn mdui-btn-icon"
+            onclick="javascript:closeSearch();"
+          >
+            <i class="mdui-icon material-icons">close</i>
+          </button>
+        </div>
       </div>
     </div>
     <div class="mdui-progress" id="progress">
@@ -105,8 +144,56 @@
     </div>
 
     <ul class="mdui-list" id="list"></ul>
-    <button class="mdui-fab mdui-fab-fixed mdui-ripple mdui-color-theme-accent" onclick="javascript:delItem();">
+    <button
+      class="mdui-fab mdui-fab-fixed mdui-ripple mdui-color-theme-accent"
+      onclick="javascript:delItem();"
+    >
       <i class="mdui-icon material-icons">delete</i>
     </button>
+    <script>
+      document
+        .querySelector("#searchForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          $("#progress").show();
+          $.ajax("http://localhost:5000/api/search", {
+            method: "POST",
+            data: {
+              keyword: $("#keyword").val(),
+            },
+            success: function (result) {
+              $("#progress").hide();
+              if (result.length == 0) {
+                mdui.snackbar("未找到相关文件");
+                return;
+              }
+              let list = $("#list");
+              saveList = list.html();
+              list.empty();
+              for (let i = 0; i < result.length; i++) {
+                list.append(
+                  '<li class="mdui-list-item mdui-ripple" id="listitem_' +
+                    i +
+                    '"><div class="mdui-list-item-content"><div class="mdui-list-item-title">' +
+                    result[i].Name +
+                    '</div><div class="mdui-list-item-text mdui-list-item-one-line">' +
+                    formatSizeUnits(result[i].Size) +
+                    '</div></div></div><label class="mdui-checkbox"><input id="input_' +
+                    i +
+                    '" onchange="addItem(' +
+                    i +
+                    ')" type="checkbox"/><i class="mdui-checkbox-icon"></i></label></li>'
+                );
+              }
+            },
+            error: function (err) {
+              mdui.snackbar(
+                "搜索失败，原因：" + err.status + " " + err.statusText
+              );
+              $("#progress").hide();
+            },
+          });
+        });
+    </script>
   </body>
 </html>

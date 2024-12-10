@@ -45,5 +45,16 @@ def delete():
     return 'OK'
 
 
+@app.route('/api/search', methods=['POST'])
+def search():
+    keyword = request.form.get('keyword')
+    listDirData(False)
+    result = []
+    for i in dirData:
+        if keyword.lower() in i['Name'].lower():
+            result.append({"Name":i['Name'],"Size":get_folder_size(str(pathlib.Path.home())+'/AppData/Roaming/'+i['Name'])})
+    return result
+
+
 if __name__ == '__main__':
     app.run(debug=False)
