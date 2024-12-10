@@ -25,13 +25,11 @@
           list.append(
             '<li class="mdui-list-item mdui-ripple" id="listitem_' +
               i +
-              '" onclick="javascript:listClick(' +
-              i +
-              ');"><div class="mdui-list-item-content"><div class="mdui-list-item-title">' +
+              '"><div class="mdui-list-item-content"><div class="mdui-list-item-title">' +
               result[i].Name +
               '</div><div class="mdui-list-item-text mdui-list-item-one-line">' +
               formatSizeUnits(result[i].Size) +
-              "</div></div></div></li>"
+              '</div></div></div><label class="mdui-checkbox"><input id="input_'+ i +'" onchange="addItem('+i+')" type="checkbox"/><i class="mdui-checkbox-icon"></i></label></li>'
           );
         }
       },
@@ -40,17 +38,35 @@
         mdui.snackbar("获取失败，原因：" + err.status + " " + err.statusText);
       },
     });
-    function listClick(i) {
-      mdui.alert("确定要删除吗？", "确定", function () {
+    const item = []
+    function addItem(id) {
+      const name = $("#input_" + id).parent().parent().find(".mdui-list-item-title").text();
+      if ($("#input_" + id).is(":checked")) {
+        mdui.snackbar("已添加：" + name);
+        item.push({name:name,id:id})
+      } else {
+        mdui.snackbar("已取消：" + name);
+        for (let i = 0; i < item.length; i++) {
+          if (item[i].id == id) {
+            item.splice(i, 1);
+            break;
+          }
+        }
+      }
+    }
+    function delItem() {
+      mdui.alert("确定要删除所选文件吗？", "警告", function () {
         $("#progress").show();
         $.ajax("http://localhost:5000/api/delete", {
           method: "POST",
           data: {
-            path: i,
+            item: JSON.stringify(item),
           },
           success: function (result) {
             mdui.snackbar("删除成功");
-            $("#listitem_" + i).remove();
+            for (let i = 0; i < item.length; i++) {
+              $("#listitem_" + item[i].id).remove();
+            }
             $("#progress").hide();
           },
           error: function (err) {
@@ -77,9 +93,9 @@
       return bytes;
     }
   </script>
-  <body>
+  <body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
     <div class="mdui-appbar">
-      <div class="mdui-toolbar mdui-color-indigo">
+      <div class="mdui-toolbar mdui-color-theme">
         <a class="mdui-typo-headline">PureAppData</a>
         <a class="mdui-typo-title">AppData清理工具</a>
       </div>
@@ -89,5 +105,8 @@
     </div>
 
     <ul class="mdui-list" id="list"></ul>
+    <button class="mdui-fab mdui-fab-fixed mdui-ripple mdui-color-theme-accent" onclick="javascript:delItem();">
+      <i class="mdui-icon material-icons">delete</i>
+    </button>
   </body>
 </html>

@@ -38,9 +38,10 @@ def listdir():
 
 @app.route('/api/delete', methods=['POST'])
 def delete():
-    path = int(request.form.get('path'))
+    item = eval(request.form.get('item'))
+    for i in item:
+        shutil.rmtree(str(pathlib.Path.home())+'/AppData/Roaming/'+i['name'])
     listDirData(False)
-    shutil.rmtree(str(pathlib.Path.home())+'/AppData/Roaming/'+dirData[path]['Name'])
     return 'OK'
 
 
