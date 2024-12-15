@@ -1,0 +1,11 @@
+{
+  "Info": {
+    "Name": "PureAppData官方规则",
+    "Author": "系迷茫呀",
+    "Version": "1.0.0",
+    "Description": "PureAppData官方规则，用于PureAppData客户端的规则"
+  },
+  "Local": [
+    { "name": "Temp", "intro": "缓存文件，可以删除", "suggestion": "delete" }
+  ]
+}
