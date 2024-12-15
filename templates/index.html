@@ -17,33 +17,85 @@
   </head>
   <script>
     saveList = "";
-    $.ajax("http://localhost:5000/api/listdir", {
-      method: "GET",
-      success: function (result) {
-        $("#progress").hide();
-        for (let i = 0; i < result.length; i++) {
-          let list = $("#list");
-          list.append(
-            '<li class="mdui-list-item mdui-ripple" id="listitem_' +
-              i +
-              '"><div class="mdui-list-item-content"><div class="mdui-list-item-title">' +
-              result[i].Name +
-              '</div><div class="mdui-list-item-text mdui-list-item-one-line">' +
-              formatSizeUnits(result[i].Size) +
-              '</div></div></div><label class="mdui-checkbox"><input id="input_' +
-              i +
-              '" onchange="addItem(' +
-              i +
-              ')" type="checkbox"/><i class="mdui-checkbox-icon"></i></label></li>'
-          );
-        }
-      },
-      error: function (err) {
-        $("#progress").hide();
-        mdui.snackbar("获取失败，原因：" + err.status + " " + err.statusText);
-      },
+    $(document).ready(function () {
+      fetchData("Roaming");
     });
+    function fetchData(dir = "Roaming") {
+      $("#progress").show();
+      if (dir === "") {
+        dir = "Roaming";
+        $("#Roaming").addClass("mdui-color-theme-accent");
+        $("#Local,#LocalLow").removeClass("mdui-color-theme-accent");
+      }
+      $("#" + dir).addClass("mdui-color-theme-accent");
+      $("#" + dir)
+        .siblings()
+        .removeClass("mdui-color-theme-accent");
+      let list = $("#list");
+      list.empty();
+      $.ajax("http://localhost:5000/api/listdir?dir=" + dir, {
+        method: "GET",
+        success: function (result) {
+          $("#progress").hide();
+          for (let i = 0; i < result.length; i++) {
+            list.append(
+              '<li class="mdui-list-item mdui-ripple" id="listitem_' +
+                i +
+                '"><div class="mdui-list-item-content"><div class="mdui-list-item-title">' +
+                result[i].Name +
+                '</div><div class="mdui-list-item-text mdui-list-item-' +
+                [result[i].Rule.Intro ? "two" : "one"] +
+                '-line">' +
+                formatSizeUnits(result[i].Size) +
+                [
+                  result[i].Rule.Suggestion === "delete"
+                    ? "<span style='color:red'>（建议删除）</span>"
+                    : "",
+                ] +
+                [
+                  result[i].Rule.Suggestion === "stay"
+                    ? "<span style='color:green'>（建议保留）</span>"
+                    : "",
+                ] +
+                [result[i].Rule.Intro ? "<br />" + result[i].Rule.Intro : ""] +
+                '</div></div></div><label class="mdui-checkbox"><input id="input_' +
+                i +
+                '" onchange="addItem(' +
+                i +
+                ')" type="checkbox"/><i class="mdui-checkbox-icon"></i></label></li>'
+            );
+          }
+        },
+        error: function (err) {
+          $("#progress").hide();
+          mdui.snackbar("获取失败，原因：" + err.status + " " + err.statusText);
+        },
+      });
+    }
+    function importRule() {
+      mdui.snackbar("导入规则中...");
+      $("#progress").show();
+      $.ajax("http://localhost:5000/api/import", {
+        method: "POST",
+        data: {
+          rule: $("#import").find("input").val(),
+        },
+        success: function (result) {
+          if (result == "OK") {
+            mdui.snackbar("导入成功");
+          } else {
+            mdui.snackbar("导入失败，原因：" + result);
+          }
+          $("#progress").hide();
+        },
+        error: function (err) {
+          mdui.snackbar("导入失败，原因：" + err.status + " " + err.statusText);
+          $("#progress").hide();
+        },
+      });
+    }
     const item = [];
+    const ruleitem = [];
     function addItem(id) {
       const name = $("#input_" + id)
         .parent()
@@ -63,29 +115,77 @@
         }
       }
     }
+    function addRuleItem(id, sourceName) {
+      const name = $("#rule_input_" + id)
+        .parent()
+        .parent()
+        .find(".mdui-list-item-title")
+        .text();
+      if ($("#rule_input_" + id).is(":checked")) {
+        mdui.snackbar("已添加：" + name);
+        ruleitem.push({ name: name, id: id, sourceName: sourceName });
+      } else {
+        mdui.snackbar("已取消：" + name);
+        for (let i = 0; i < ruleitem.length; i++) {
+          if (ruleitem[i].id == id) {
+            ruleitem.splice(i, 1);
+            break;
+          }
+        }
+      }
+    }
     function delItem() {
-      mdui.alert("确定要删除所选文件吗？", "警告", function () {
-        $("#progress").show();
-        $.ajax("http://localhost:5000/api/delete", {
-          method: "POST",
-          data: {
-            item: JSON.stringify(item),
-          },
-          success: function (result) {
-            mdui.snackbar("删除成功");
-            for (let i = 0; i < item.length; i++) {
-              $("#listitem_" + item[i].id).remove();
-            }
-            $("#progress").hide();
-          },
-          error: function (err) {
-            mdui.snackbar(
-              "删除失败，原因：" + err.status + " " + err.statusText
-            );
-            $("#progress").hide();
-          },
+      if ($("#tabs-file-tab").hasClass("mdui-tab-active")) {
+        mdui.alert("确定要删除所选文件吗？", "警告", function () {
+          $("#progress").show();
+          $.ajax("http://localhost:5000/api/delete", {
+            method: "POST",
+            data: {
+              item: JSON.stringify(item),
+            },
+            success: function (result) {
+              mdui.snackbar("删除成功");
+              list.length = 0;
+              for (let i = 0; i < item.length; i++) {
+                $("#listitem_" + item[i].id).remove();
+              }
+              $("#progress").hide();
+            },
+            error: function (err) {
+              mdui.snackbar(
+                "删除失败，原因：" + err.status + " " + err.statusText
+              );
+              $("#progress").hide();
+            },
+          });
         });
-      });
+      }
+      if ($("#tabs-rule-tab").hasClass("mdui-tab-active")) {
+        mdui.alert("确定要删除所选规则吗？", "警告", function () {
+          $("#progress").show();
+          $.ajax("http://localhost:5000/api/deleterule", {
+            method: "POST",
+            data: {
+              item: JSON.stringify(ruleitem),
+            },
+            success: function (result) {
+              mdui.snackbar("删除成功");
+              getRules(true, true);
+              for (let i = 0; i < ruleitem.length; i++) {
+                $("#rule_listitem_" + ruleitem[i].id).remove();
+              }
+              ruleitem.length = 0;
+              $("#progress").hide();
+            },
+            error: function (err) {
+              mdui.snackbar(
+                "删除失败，原因：" + err.status + " " + err.statusText
+              );
+              $("#progress").hide();
+            },
+          });
+        });
+      }
     }
     function formatSizeUnits(bytes) {
       if (bytes >= 1073741824) {
@@ -105,6 +205,143 @@
       $("#title,#sub-title,#showSearch").show();
       $("#keyword").val("");
       $("#list").html(saveList);
+      $("#Roaming,#Local,#LocalLow").removeAttr("disabled");
+    }
+    function openSearch() {
+      $("#title,#sub-title,#showSearch").hide();
+      $("#keyword").val("");
+      let list = $("#list");
+      saveList = list.html();
+      $("#Roaming,#Local,#LocalLow").attr("disabled", "disabled");
+    }
+    function getRules(force = false, updateFile = false) {
+      if (updateFile) {
+        dir = [
+          $("#Roaming").hasClass("mdui-color-theme-accent") ? "Roaming" : "",
+          $("#Local").hasClass("mdui-color-theme-accent") ? "Local" : "",
+          $("#LocalLow").hasClass("mdui-color-theme-accent") ? "LocalLow" : "",
+        ][0];
+        fetchData(dir);
+      }
+      let list = $("#ruleList");
+      if (list.html() !== "" && !force) {
+        return;
+      }
+      $("#progress").show();
+      $.ajax("http://localhost:5000/api/getrules", {
+        method: "GET",
+        success: function (result) {
+          $("#ruleList").empty();
+          for (let i = 0; i < result.length; i++) {
+            list.append(
+              '<li class="mdui-list-item mdui-ripple" id="rule_listitem_' +
+                i +
+                '"><div class="mdui-list-item-content"><div class="mdui-list-item-title">' +
+                result[i].Name +
+                '</div><div class="mdui-list-item-text mdui-list-item-two-line">' +
+                result[i].Author +
+                "<br />" +
+                result[i].Description +
+                '</div></div></div><label class="mdui-checkbox"><input id="rule_input_' +
+                i +
+                '" onchange="addRuleItem(' +
+                i +
+                ",'" +
+                result[i].SourceName +
+                '\')" type="checkbox"/><i class="mdui-checkbox-icon"></i></label></li>'
+            );
+          }
+          $("#progress").hide();
+        },
+        error: function (err) {
+          mdui.snackbar(
+            "获取规则失败，原因：" + err.status + " " + err.statusText
+          );
+          $("#progress").hide();
+        },
+      });
+    }
+    function outputRule() {
+      $("#outputField").val("");
+      $("#editField").val("");
+      $("#progress").show();
+      $.ajax("http://localhost:5000/api/getrule", {
+        method: "POST",
+        data: {
+          item: JSON.stringify(ruleitem),
+        },
+        success: function (result) {
+          $("#outputField").val(result);
+          if (ruleitem.length === 1) {
+            $("#editField").val(result.replaceAll("Output of rules:\n\n", ""));
+          }
+          $("#progress").hide();
+        },
+        error: function (err) {
+          mdui.snackbar(
+            "获取规则失败，原因：" + err.status + " " + err.statusText
+          );
+          $("#progress").hide();
+        },
+      });
+    }
+    function submitRule() {
+      if (ruleitem.length === 1) {
+        mdui.snackbar("修改规则中...");
+        $("#progress").show();
+        $.ajax("http://localhost:5000/api/submitrule", {
+          method: "POST",
+          data: {
+            sourceName: ruleitem[0].sourceName,
+            rule: $("#editField").val(),
+          },
+          success: function (result) {
+            if (result == "OK") {
+              mdui.snackbar("修改成功");
+              getRules(true, true);
+              ruleitem.length = 0;
+              $("#editField").val("");
+            } else {
+              mdui.snackbar("修改失败，原因：" + result);
+            }
+            $("#progress").hide();
+          },
+          error: function (err) {
+            mdui.snackbar(
+              "修改失败，原因：" + err.status + " " + err.statusText
+            );
+            $("#progress").hide();
+          },
+        });
+      } else if (ruleitem.length === 0) {
+        mdui.snackbar("提交规则中...");
+        $("#progress").show();
+        $.ajax("http://localhost:5000/api/submitrule", {
+          method: "POST",
+          data: {
+            rule: $("#editField").val(),
+          },
+          success: function (result) {
+            if (result == "OK") {
+              mdui.snackbar("提交成功");
+              getRules(true, true);
+              ruleitem.length = 0;
+              $("#editField").val("");
+            } else {
+              mdui.snackbar("提交失败，原因：" + result);
+            }
+            $("#progress").hide();
+          },
+          error: function (err) {
+            mdui.snackbar(
+              "提交失败，原因：" + err.status + " " + err.statusText
+            );
+            $("#progress").hide();
+          },
+        });
+      } else {
+        mdui.snackbar("请只选择一个规则或取消所有选择来创建新规则");
+      }
     }
   </script>
   <body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
@@ -117,7 +354,7 @@
           <button
             class="mdui-textfield-icon mdui-btn mdui-btn-icon"
             id="showSearch"
-            onclick="javascript:$('#title,#sub-title,#showSearch').hide();"
+            onclick="javascript:openSearch();"
           >
             <i class="mdui-icon material-icons">search</i>
           </button>
@@ -138,12 +375,159 @@
           </button>
         </div>
       </div>
+      <div class="mdui-tab mdui-color-theme" mdui-tab>
+        <a
+          href="#file-tab"
+          class="mdui-ripple mdui-ripple-white"
+          id="tabs-file-tab"
+        >
+          <i class="mdui-icon material-icons">folder</i>
+          <label>我的文件</label>
+        </a>
+        <a
+          href="#rule-tab"
+          onclick="javascript:getRules();"
+          class="mdui-ripple mdui-ripple-white"
+          id="tabs-rule-tab"
+        >
+          <i class="mdui-icon material-icons">book</i>
+          <label>我的规则</label>
+        </a>
+      </div>
     </div>
     <div class="mdui-progress" id="progress">
       <div class="mdui-progress-indeterminate"></div>
     </div>
 
-    <ul class="mdui-list" id="list"></ul>
+    <div class="mdui-tab-panel" id="file-tab">
+      <div style="padding: 3%">
+        <div class="mdui-typo-headline">我的文件</div>
+        <div class="mdui-typo-body-2">
+          这里是你的AppData文件，你可以在这里删除不需要的文件。
+        </div>
+        <div style="margin-top: 1%">
+          <button
+            id="Roaming"
+            class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent"
+            onclick="javascript:fetchData('Roaming');"
+          >
+            Roaming
+          </button>
+          <button
+            id="Local"
+            class="mdui-btn mdui-btn-raised mdui-ripple"
+            onclick="javascript:fetchData('Local');"
+          >
+            Local
+          </button>
+          <button
+            id="LocalLow"
+            class="mdui-btn mdui-btn-raised mdui-ripple"
+            onclick="javascript:fetchData('LocalLow');"
+          >
+            LocalLow
+          </button>
+        </div>
+      </div>
+      <ul class="mdui-list" id="list"></ul>
+    </div>
+    <div class="mdui-tab-panel" id="rule-tab">
+      <div style="padding: 3%">
+        <div class="mdui-typo-headline">我的规则</div>
+        <div class="mdui-typo-body-2">
+          这里是你的规则文件，你可以在这里添加、删除、修改规则。
+        </div>
+        <div style="margin-top: 1%">
+          <button
+            class="mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent"
+            mdui-dialog="{target: '#edit'}"
+            onclick="javascript:outputRule();"
+          >
+            创建/编辑
+          </button>
+          <div class="mdui-dialog" id="edit">
+            <div class="mdui-dialog-title">编辑规则</div>
+            <div class="mdui-dialog-content">
+              你可以在这里添加或修改规则
+              <div class="mdui-textfield">
+                <textarea
+                  rows="10"
+                  class="mdui-textfield-input"
+                  id="editField"
+                ></textarea>
+              </div>
+            </div>
+            <div class="mdui-dialog-actions">
+              <button class="mdui-btn mdui-ripple" mdui-dialog-close>
+                取消
+              </button>
+              <button
+                onclick="javascript:submitRule();"
+                class="mdui-btn mdui-ripple"
+                mdui-dialog-confirm
+              >
+                提交
+              </button>
+            </div>
+          </div>
+          <button
+            class="mdui-btn mdui-btn-raised mdui-ripple"
+            mdui-dialog="{target: '#import'}"
+          >
+            导入
+          </button>
+          <div class="mdui-dialog" id="import">
+            <div class="mdui-dialog-title">规则地址</div>
+            <div class="mdui-dialog-content">
+              你可以输入你获取到的json文件地址
+              <div class="mdui-textfield">
+                <input class="mdui-textfield-input" type="text" />
+              </div>
+            </div>
+            <div class="mdui-dialog-actions">
+              <button class="mdui-btn mdui-ripple" mdui-dialog-close>
+                取消
+              </button>
+              <button
+                onclick="javascript:importRule();"
+                class="mdui-btn mdui-ripple"
+                mdui-dialog-confirm
+              >
+                导入
+              </button>
+            </div>
+          </div>
+          <button
+            class="mdui-btn mdui-btn-raised mdui-ripple"
+            mdui-dialog="{target: '#output'}"
+            onclick="javascript:outputRule();"
+          >
+            导出
+          </button>
+          <div class="mdui-dialog" id="output">
+            <div class="mdui-dialog-title">导出规则</div>
+            <div class="mdui-dialog-content">
+              你可以复制下面的内容
+              <div class="mdui-textfield">
+                <textarea
+                  readonly
+                  rows="10"
+                  id="outputField"
+                  class="mdui-textfield-input"
+                  type="text"
+                ></textarea>
+              </div>
+            </div>
+            <div class="mdui-dialog-actions">
+              <button class="mdui-btn mdui-ripple" mdui-dialog-close>
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="mdui-list" id="ruleList"></ul>
+    </div>
     <button
       class="mdui-fab mdui-fab-fixed mdui-ripple mdui-color-theme-accent"
       onclick="javascript:delItem();"
@@ -160,6 +544,19 @@
             method: "POST",
             data: {
               keyword: $("#keyword").val(),
+              dir: $("#Roaming").hasClass(
+                "mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent"
+              )
+                ? "Roaming"
+                : $("#Local").hasClass(
+                    "mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent"
+                  )
+                ? "Local"
+                : $("#LocalLow").hasClass(
+                    "mdui-btn mdui-btn-raised mdui-ripple mdui-color-theme-accent"
+                  )
+                ? "LocalLow"
+                : "Roaming",
             },
             success: function (result) {
               $("#progress").hide();
@@ -176,8 +573,25 @@
                     i +
                     '"><div class="mdui-list-item-content"><div class="mdui-list-item-title">' +
                     result[i].Name +
-                    '</div><div class="mdui-list-item-text mdui-list-item-one-line">' +
+                    '</div><div class="mdui-list-item-text mdui-list-item-' +
+                    [result[i].Rule.Intro ? "two" : "one"] +
+                    '-line">' +
                     formatSizeUnits(result[i].Size) +
+                    [
+                      result[i].Rule.Suggestion === "delete"
+                        ? "<span style='color:red'>（建议删除）</span>"
+                        : "",
+                    ] +
+                    [
+                      result[i].Rule.Suggestion === "stay"
+                        ? "<span style='color:green'>（建议保留）</span>"
+                        : "",
+                    ] +
+                    [
+                      result[i].Rule.Intro
+                        ? "<br />" + result[i].Rule.Intro
+                        : "",
+                    ] +
                     '</div></div></div><label class="mdui-checkbox"><input id="input_' +
                     i +
                     '" onchange="addItem(' +
