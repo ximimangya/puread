@@ -19,3 +19,10 @@
 
 # 发行版说明
 所有生产版本的.py文件均已加密
+
+# AI相关
+使用ai需要你拥有一个openai的api地址以及密钥
+
+1. 编辑config.json
+2. 修改openai_api_key、openai_api_url以及openai_model
+3. 保存后重启软件
