@@ -2,10 +2,18 @@
   "Info": {
     "Name": "PureAppData官方规则",
     "Author": "系迷茫呀",
-    "Version": "1.0.0",
+    "Version": "1.1.0",
     "Description": "PureAppData官方规则，用于PureAppData客户端的规则"
   },
   "Local": [
-    { "name": "Temp", "intro": "缓存文件，可以删除", "suggestion": "delete" }
+    { "name": "Temp", "intro": "缓存文件，可以删除", "suggestion": "delete" },
+    { "name": "npm-cache", "intro": "NPM缓存文件，可以删除", "suggestion": "delete" },
+    { "name": "pnpm-cache", "intro": "PNPM缓存文件，可以删除", "suggestion": "delete" }
+  ],
+  "Roaming": [
+    { "name": "pip", "intro": "Python pip配置文件，建议保留", "suggestion": "stay" },
+    { "name": "npm", "intro": "NPM命令存储文件，建议保留", "suggestion": "stay" },
+    { "name": "Microsoft", "intro": "微软产品数据文件，建议保留", "suggestion": "stay" },
+    { "name": "Code", "intro": "VSCode数据文件，建议保留", "suggestion": "stay" }
   ]
 }
