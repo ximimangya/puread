@@ -17,10 +17,12 @@
   </head>
   <script>
     saveList = "";
+    workDir = "";
     $(document).ready(function () {
       fetchData("Roaming");
     });
     function fetchData(dir = "Roaming") {
+      workDir = dir;
       $("#progress").show();
       if (dir === "") {
         dir = "Roaming";
@@ -39,7 +41,15 @@
           $("#progress").hide();
           for (let i = 0; i < result.length; i++) {
             list.append(
-              '<li class="mdui-list-item mdui-ripple" id="listitem_' +
+              '<li mdui-dialog="' +
+                "{target: '#ai'}" +
+                '" onclick="javascript:getAISuggestion(\'' +
+                result[i].Name +
+                "','" +
+                workDir +
+                "','" +
+                i +
+                '\');" class="mdui-list-item mdui-ripple" id="listitem_' +
                 i +
                 '"><div class="mdui-list-item-content"><div class="mdui-list-item-title">' +
                 result[i].Name +
@@ -96,13 +106,13 @@
     }
     const item = [];
     const ruleitem = [];
-    function addItem(id) {
+    function addItem(id, force = false) {
       const name = $("#input_" + id)
         .parent()
         .parent()
         .find(".mdui-list-item-title")
         .text();
-      if ($("#input_" + id).is(":checked")) {
+      if ($("#input_" + id).is(":checked") || force) {
         mdui.snackbar("已添加：" + name);
         item.push({ name: name, id: id });
       } else {
@@ -216,12 +226,7 @@
     }
     function getRules(force = false, updateFile = false) {
       if (updateFile) {
-        dir = [
-          $("#Roaming").hasClass("mdui-color-theme-accent") ? "Roaming" : "",
-          $("#Local").hasClass("mdui-color-theme-accent") ? "Local" : "",
-          $("#LocalLow").hasClass("mdui-color-theme-accent") ? "LocalLow" : "",
-        ][0];
-        fetchData(dir);
+        fetchData(workDir);
       }
       let list = $("#ruleList");
       if (list.html() !== "" && !force) {
@@ -342,6 +347,40 @@
       } else {
         mdui.snackbar("请只选择一个规则或取消所有选择来创建新规则");
       }
+    }
+    function getAISuggestion(filename, dir, id) {
+      $("#aiIntro").val("");
+      $("#aiDelete,#aiStay").hide();
+      $("#progress").show();
+      $.ajax("http://localhost:5000/api/ai", {
+        method: "POST",
+        data: {
+          filename: filename,
+          dir: dir,
+        },
+        success: function (result) {
+          mdui.snackbar("获取成功");
+          $("#aiIntro").val(JSON.parse(result).Intro);
+          $("#aiItem")
+            .attr("onclick", "")
+            .click(function () {
+              addItem(id, true);
+              $("#input_" + id).attr("checked", true);
+            });
+          if (JSON.parse(result).Suggestion === "delete") {
+            $("#aiDelete").show();
+            $("#aiStay").hide();
+          } else if (JSON.parse(result).Suggestion === "stay") {
+            $("#aiDelete").hide();
+            $("#aiStay").show();
+          }
+          $("#progress").hide();
+        },
+        error: function (err) {
+          mdui.snackbar("获取失败，原因：" + err.status + " " + err.statusText);
+          $("#progress").hide();
+        },
+      });
     }
   </script>
   <body class="mdui-theme-primary-indigo mdui-theme-accent-pink">
@@ -534,6 +573,27 @@
     >
       <i class="mdui-icon material-icons">delete</i>
     </button>
+    <div class="mdui-dialog" id="ai">
+      <div class="mdui-dialog-title">AI建议</div>
+      <div class="mdui-dialog-content">
+        内容为AI生成，请谨慎判断和使用
+        <p style="color: green; display: none" id="aiDelete">AI建议保留</p>
+        <p style="color: red; display: none" id="aiStay">AI建议删除</p>
+        <textarea
+          readonly
+          rows="10"
+          id="aiIntro"
+          class="mdui-textfield-input"
+          type="text"
+        ></textarea>
+      </div>
+      <div class="mdui-dialog-actions">
+        <button class="mdui-btn mdui-ripple" mdui-dialog-close>关闭</button>
+        <button class="mdui-btn mdui-ripple" mdui-dialog-confirm id="aiItem">
+          选中
+        </button>
+      </div>
+    </div>
     <script>
       document
         .querySelector("#searchForm")

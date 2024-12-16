@@ -5,6 +5,16 @@ import shutil
 import requests
 import time
 import json
+import openai
+
+
+with open(os.getcwd() + '/config.json', encoding='utf8', mode='r') as config:
+    global_config = json.load(config)
+
+
+openai.api_key = global_config['openai_api_key']
+openai.base_url = global_config['openai_api_url']
+openai.default_headers = {"x-foo": "true"}
 
 
 for directory in ['/rules']:
@@ -152,6 +162,26 @@ def submitrule():
         with open(os.getcwd()+'/rules/'+str(int(time.time()))+'.json', 'w', encoding='utf-8') as f:
             f.write(rule)
     return 'OK'
+
+
+@app.route('/api/ai' , methods=['POST'])
+def ai():
+    filename = request.form.get('filename')
+    dir = request.form.get('dir')
+    if filename is None:
+        return 'Invalid filename'
+    if dir is None:
+        return 'Invalid dir'
+    completion = openai.chat.completions.create(
+    model=global_config['openai_model'],
+    messages=[
+        {
+            "role": "user",
+            "content": rf"我想删除C:\Users\Administrator\AppData\{dir}\{filename}这个文件夹，你能给我一些建议吗？以json格式输出，格式为一个Intro和Suggestion字段，Intro为建议的原因（要有对应软件的介绍），Suggestion为建议（delete【建议删除】或stay【建议保留】，不要出现任何文件都建议保留或删除），不要使用markdown或html，只能是json"
+        }]
+    )
+
+    return completion.choices[0].message.content
 
 
 if __name__ == '__main__':
